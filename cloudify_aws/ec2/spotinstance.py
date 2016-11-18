@@ -69,7 +69,7 @@ class SpotInstance(Instance):
         return super(SpotInstance, self).creation_validation()
 
     def create(self, args=None, **_):
-        ctx.logger.info('Creating a spot instance - coooool!')
+        ctx.logger.info('Creating a spot instance - VERY coooool!')
         return super(SpotInstance, self).create(args)
 
     def start(self, args=None, start_retry_interval=30,
