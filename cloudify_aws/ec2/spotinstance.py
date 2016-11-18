@@ -69,8 +69,28 @@ class SpotInstance(Instance):
         return super(SpotInstance, self).creation_validation()
 
     def create(self, args=None, **_):
-        ctx.logger.info('Creating a spot instance - VERY coooool!')
-        return super(SpotInstance, self).create(args)
+        ctx.logger.info('Creating a spot instance')
+
+        instance_parameters = self._get_instance_parameters()
+
+        ctx.logger.info(
+            'Attempting to create EC2 Spot Instance with these API '
+            'parameters: {0}.'.format(instance_parameters))
+
+        self._spot_pricing_history(instance_parameters['instance_type'])
+
+        instance_id = self._run_instances_if_needed(instance_parameters)
+
+        instance = self._get_instance_from_id(instance_id)
+
+        if instance is None:
+            return False
+
+        utils.set_external_resource_id(
+            instance_id, ctx.instance, external=False)
+        self._instance_created_assign_runtime_properties()
+
+        return True
 
     def start(self, args=None, start_retry_interval=30,
               private_key_path=None, **_):
@@ -85,3 +105,9 @@ class SpotInstance(Instance):
 
     def stop(self, args=None, **_):
         return super(SpotInstance, self).stop(args)
+
+    def _spot_pricing_history(self, instance_type, availability_zone='eu-central-1a'):
+        ctx.logger.info('retrieving spot_pricing_history')
+        res = conn.get_spot_price_history(instance_type=instance_type,
+                                          availability_zone=availability_zone)
+        ctx.logger.info('spot_pricing_history: {0}'.format(res))
