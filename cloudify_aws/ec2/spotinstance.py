@@ -107,7 +107,10 @@ class SpotInstance(Instance):
         return super(SpotInstance, self).stop(args)
 
     def _spot_pricing_history(self, instance_type, availability_zone='eu-central-1a'):
-        ctx.logger.info('retrieving spot_pricing_history')
-        res = conn.get_spot_price_history(instance_type=instance_type,
-                                          availability_zone=availability_zone)
-        ctx.logger.info('spot_pricing_history: {0}'.format(res))
+        try:
+            ctx.logger.info('retrieving spot_pricing_history')
+            res = self.client.get_spot_price_history(instance_type=instance_type,
+                                                     availability_zone=availability_zone)
+            ctx.logger.info('spot_pricing_history: {0}'.format(res))
+        except Exception as ex:
+            ctx.logger.debug('spot_pricing_history failed: {0}'.format(ex))
