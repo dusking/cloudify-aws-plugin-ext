@@ -5,9 +5,12 @@
 plugins:
   aws:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-cosmo/cloudify-aws-plugin/archive/1.4.3.zip
-    package_name: cloudify-aws-plugin
-    package_version: '1.4.3'
+#    source: https://github.com/cloudify-cosmo/cloudify-aws-plugin/archive/1.4.3.zip
+    source: https://github.com/dusking/cloudify-aws-plugin-ext/archive/master.zip
+#    package_name: cloudify-aws-plugin
+#    package_version: '1.4.3'
+    package_name: cloudify-aws-plugin-ext
+    package_version: '0.0.1'
 
 data_types:
 
@@ -209,6 +212,16 @@ node_types:
       cloudify.interfaces.validation:
         creation:
           implementation: aws.cloudify_aws.ec2.instance.creation_validation
+
+#  cloudify.aws.nodes.AwsSpotInstance:
+#    derived_from: cloudify.aws.nodes.Instance
+#    interfaces:
+#      cloudify.interfaces.lifecycle:
+#        create:
+#          implementation: aws.cloudify_aws.ec2.spotinstance.create
+#          inputs:
+#            args:
+#              default: {}
 
   cloudify.aws.nodes.WindowsInstance:
     derived_from: cloudify.aws.nodes.Instance
