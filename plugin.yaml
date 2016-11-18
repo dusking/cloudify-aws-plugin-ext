@@ -213,6 +213,16 @@ node_types:
         creation:
           implementation: aws.cloudify_aws.ec2.instance.creation_validation
 
+#  cloudify.aws.nodes.AwsSpotInstance:
+#    derived_from: cloudify.aws.nodes.Instance
+#    interfaces:
+#      cloudify.interfaces.lifecycle:
+#        create:
+#          implementation: aws.cloudify_aws.ec2.spotinstance.create
+#          inputs:
+#            args:
+#              default: {}
+
   cloudify.aws.nodes.WindowsInstance:
     derived_from: cloudify.aws.nodes.Instance
     properties:
