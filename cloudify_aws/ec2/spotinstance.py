@@ -110,17 +110,19 @@ class SpotInstance(Instance):
 
     def start(self, args=None, start_retry_interval=30,
               private_key_path=None, **_):
+        ctx.logger.info('Starting spot instance')
         return super(SpotInstance, self).start(args, start_retry_interval,
                                                private_key_path)
 
     def delete(self, args=None, **_):
+        ctx.logger.info('Deleting spot instance')
         return super(SpotInstance, self).delete(args)
 
     def modify_attributes(self, new_attributes, args=None, **_):
         return super(SpotInstance, self).modify_attributes(new_attributes, args)
 
     def stop(self, args=None, **_):
-        ctx.logger.info('Spot instance can not be stopped')
+        ctx.logger.info('Trying to stop. Spot instance can not be stopped')
         utils.unassign_runtime_properties_from_resource(
             property_names=constants.INSTANCE_INTERNAL_ATTRIBUTES,
             ctx_instance=ctx.instance)
