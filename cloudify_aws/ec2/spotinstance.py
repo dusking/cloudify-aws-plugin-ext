@@ -14,6 +14,7 @@
 #    * limitations under the License.
 
 import os
+import time
 
 # Third-party Imports
 from boto import exception
