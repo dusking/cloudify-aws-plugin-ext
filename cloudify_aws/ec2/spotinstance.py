@@ -14,11 +14,10 @@
 #    * limitations under the License.
 
 import os
-import datetime
 
 # Third-party Imports
 from boto import exception
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 # Cloudify imports
 from cloudify import ctx
