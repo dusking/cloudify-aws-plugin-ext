@@ -14,10 +14,11 @@
 #    * limitations under the License.
 
 import os
+import datetime
 
 # Third-party Imports
 from boto import exception
-from datetime import date, timedelta
+from datetime import timedelta
 
 # Cloudify imports
 from cloudify import ctx
@@ -75,13 +76,14 @@ class SpotInstance(Instance):
 
         instance_parameters = self._get_instance_parameters()
 
-        ctx.logger.info(
-            'Attempting to create EC2 Spot Instance with these API '
-            'parameters: {0}.'.format(instance_parameters))
-
+        ctx.logger.info('Retrieving spot instance pricing history')
         self._pricing_history = self._spot_pricing_history(instance_parameters['instance_type'])
         if not self._pricing_history:
             raise NonRecoverableError('Failed to retrieve spot pricing history')
+
+        ctx.logger.info(
+            'Attempting to create EC2 Spot Instance with these API '
+            'parameters: {0}.'.format(instance_parameters))
 
         instance_id = self._create_spot_instances(
             instance_type=instance_parameters['instance_type'],
