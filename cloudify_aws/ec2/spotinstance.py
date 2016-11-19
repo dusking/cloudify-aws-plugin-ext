@@ -70,6 +70,15 @@ class SpotInstance(Instance):
     def creation_validation(self, **_):
         return super(SpotInstance, self).creation_validation()
 
+    def _security_group_names(self, security_group_ids):
+        ctx.logger.info('Retrieving security groups names for: {0}'.format(security_group_ids))
+        sg = self.execute(self.client.get_all_security_groups,
+                          dict(group_ids=security_group_ids),
+                          raise_on_falsy=True)
+        sg = [botoSecurityGroup.name for botoSecurityGroup in sg]
+        ctx.logger.info('Security groups names: {0}'.format(sg))
+        return sg
+
     def create(self, args=None, **_):
         ctx.logger.info('Creating a spot instance')
 
@@ -84,12 +93,13 @@ class SpotInstance(Instance):
             'Attempting to create EC2 Spot Instance with these API '
             'parameters: {0}.'.format(instance_parameters))
 
+        sg_names = self._security_group_names(instance_parameters['security_group_ids'])
         instance_id = self._create_spot_instances(
             instance_type=instance_parameters['instance_type'],
             image_id=instance_parameters['image_id'],
             availability_zone_group='eu-central-1a',
             key_name=instance_parameters['key_name'],
-            security_groups=instance_parameters['security_group_ids'])
+            security_groups=sg_names)
 
         # instance_id = self._run_instances_if_needed(instance_parameters)
 
