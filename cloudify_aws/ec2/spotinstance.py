@@ -70,15 +70,6 @@ class SpotInstance(Instance):
     def creation_validation(self, **_):
         return super(SpotInstance, self).creation_validation()
 
-    def _security_group_names(self, security_group_ids):
-        ctx.logger.info('Retrieving security groups names for: {0}'.format(security_group_ids))
-        sg = self.execute(self.client.get_all_security_groups,
-                          dict(group_ids=security_group_ids),
-                          raise_on_falsy=True)
-        sg = [botoSecurityGroup.name for botoSecurityGroup in sg]
-        ctx.logger.info('Security groups names: {0}'.format(sg))
-        return sg
-
     def create(self, args=None, **_):
         ctx.logger.info('Creating a spot instance')
 
@@ -143,6 +134,21 @@ class SpotInstance(Instance):
         ctx.logger.info('spot pricing history: {0}'.format(price_history))
         return price_history
 
+    def _security_group_names(self, security_group_ids):
+        ctx.logger.info('Retrieving security groups names for: {0}'.format(security_group_ids))
+        sg = self.execute(self.client.get_all_security_groups,
+                          dict(group_ids=security_group_ids),
+                          raise_on_falsy=True)
+        sg = [botoSecurityGroup.name for botoSecurityGroup in sg]
+        ctx.logger.info('Security groups names: {0}'.format(sg))
+        return sg
+
+    def _get_all_spot_instance_requests(self):
+        ctx.logger.debug('Retrieving all spot requests')
+        sr = self.execute(self.client.get_all_spot_instance_requests,
+                          raise_on_falsy=True)
+        return sr
+
     def _create_spot_instances_at_price(self, instance_type,
                                         image_id,
                                         availability_zone_group,
@@ -168,7 +174,7 @@ class SpotInstance(Instance):
             ctx.logger.debug("checking job instance id for spot request: {0}, "
                              "with max price: {1}".format(spot_req.id, spot_req.price))
             job_sir_id = spot_req.id
-            spot_requests = conn.get_all_spot_instance_requests()
+            spot_requests = self._get_all_spot_instance_requests()
             for sir in spot_requests:
                 if sir.id == job_sir_id:
                     job_instance_id = sir.instance_id
