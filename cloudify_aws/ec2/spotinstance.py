@@ -120,7 +120,11 @@ class SpotInstance(Instance):
         return super(SpotInstance, self).modify_attributes(new_attributes, args)
 
     def stop(self, args=None, **_):
-        return super(SpotInstance, self).stop(args)
+        ctx.logger.info('Spot instance can not be stopped')
+        utils.unassign_runtime_properties_from_resource(
+            property_names=constants.INSTANCE_INTERNAL_ATTRIBUTES,
+            ctx_instance=ctx.instance)
+        return True
 
     def _spot_pricing_history(self, instance_type, availability_zone='eu-central-1a'):
         ctx.logger.info('retrieving spot_pricing_history')
@@ -174,8 +178,8 @@ class SpotInstance(Instance):
         sleep_between_iterations_sec = 2
         timeout = 20
         while timeout and not job_instance_id:
-            ctx.logger.info("checking job instance id for spot request: {0}, "
-                            "with max price: {1}".format(spot_req.id, spot_req.price))
+            ctx.logger.debug("checking job instance id for spot request: {0}, "
+                             "with max price: {1}".format(spot_req.id, spot_req.price))
             job_sir_id = spot_req.id
             spot_requests = self._get_all_spot_instance_requests()
             for sir in spot_requests:
@@ -210,3 +214,10 @@ class SpotInstance(Instance):
             ctx.logger.warning('Creating instance with price: {0} Failed'.format(price))
 
         return job_instance_id
+
+    def _delete_spot_instance(self):
+        instance = get_instance(conn)
+        if instance:
+            logger.info('Terminating instance: {0}'.format(instance))
+            instance.terminate()
+            wait_for_instance_status(instance, 'terminated')
