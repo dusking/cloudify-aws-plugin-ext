@@ -178,12 +178,12 @@ class SpotInstance(Instance):
                            raise_on_falsy=True)
         ctx.logger.info('Requests terminated: {0}'.format(res))
 
-    def _create_spot_instances(self, args=None, **kwargs):
+    def _create_spot_instances(self, **kwargs):
         job_instance_id = None
 
         for price in self._pricing_history:
-            ctx.logger.info('Creating instance with price: {0}'.format(price))
-            job_instance_id = self._create_spot_instances_at_price(args, price=price, **kwargs)
+            ctx.logger.info('Creating instance with price: {0}, args: {1}'.format(price, kwargs))
+            job_instance_id = self._create_spot_instances_at_price(price=price, **kwargs)
             if job_instance_id:
                 break
             ctx.logger.warning('Creating instance with price: {0} Failed'.format(price))
