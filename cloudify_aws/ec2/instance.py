@@ -127,6 +127,7 @@ class Instance(AwsBaseNode):
 
     def start(self, args=None, start_retry_interval=30,
               private_key_path=None, **_):
+        ctx.logger.info('Going to start instance..')
 
         instance_id = self.resource_id
 

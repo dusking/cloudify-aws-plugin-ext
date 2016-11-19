@@ -93,13 +93,15 @@ class SpotInstance(Instance):
             key_name=instance_parameters['key_name'],
             security_groups=sg_names)
 
-        # instance_id = self._run_instances_if_needed(instance_parameters)
+        self.resource_id = instance_id
+        # ctx.instance.runtime_properties['reservation_id'] = reservation.id
 
         instance = self._get_instance_from_id(instance_id)
 
         if instance is None:
             return False
 
+        ctx.logger.info('Setting external ip')
         utils.set_external_resource_id(
             instance_id, ctx.instance, external=False)
         self._instance_created_assign_runtime_properties()
@@ -145,7 +147,7 @@ class SpotInstance(Instance):
         return sg
 
     def _get_all_spot_instance_requests(self):
-        ctx.logger.debug('Retrieving all spot requests')
+        ctx.logger.info('Retrieving all spot requests')
         sr = self.execute(self.client.get_all_spot_instance_requests,
                           raise_on_falsy=True)
         return sr
@@ -172,14 +174,14 @@ class SpotInstance(Instance):
         sleep_between_iterations_sec = 2
         timeout = 20
         while timeout and not job_instance_id:
-            ctx.logger.debug("checking job instance id for spot request: {0}, "
-                             "with max price: {1}".format(spot_req.id, spot_req.price))
+            ctx.logger.info("checking job instance id for spot request: {0}, "
+                            "with max price: {1}".format(spot_req.id, spot_req.price))
             job_sir_id = spot_req.id
             spot_requests = self._get_all_spot_instance_requests()
             for sir in spot_requests:
                 if sir.id == job_sir_id:
                     job_instance_id = sir.instance_id
-                    ctx.logger.debug("job instance id: {0}".format(str(job_instance_id)))
+                    ctx.logger.info("job instance id: {0}".format(str(job_instance_id)))
                     break
             time.sleep(sleep_between_iterations_sec)
             timeout -= 1
@@ -187,6 +189,8 @@ class SpotInstance(Instance):
         if not job_instance_id:
             ctx.logger.info('Canceling spot request: {0}'.format(spot_req.id))
             self._cancel_spot_instance_requests(spot_req.id)
+        else:
+            ctx.logger.info("Spot instance id: {0}".format(job_instance_id))
         return job_instance_id
 
     def _cancel_spot_instance_requests(self, spot_req_id):
