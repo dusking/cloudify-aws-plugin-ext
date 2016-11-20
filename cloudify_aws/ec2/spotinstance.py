@@ -209,7 +209,8 @@ class SpotInstance(Instance):
     def _create_spot_instances(self, **kwargs):
         job_instance_id = None
 
-        pricing_list = sorted(list(self._pricing_history))
+        # pricing_list = sorted(list(self._pricing_history))
+        pricing_list = self._remove_low_and_rare_prices()
         for price in pricing_list:
             ctx.logger.info('Creating instance with price: {0}, args: {1}'.format(price, kwargs))
             job_instance_id = self._create_spot_instances_at_price(price=price, **kwargs)
@@ -218,6 +219,18 @@ class SpotInstance(Instance):
             ctx.logger.warning('Creating instance with price: {0} Failed'.format(price))
 
         return job_instance_id
+
+    def _remove_low_and_rare_prices(self):
+        pricing_list = sorted(list(self._pricing_history))
+        prices_to_remove = []
+        min_occur = 10
+        for price in pricing_list:
+            if self._pricing_history[price] < min_occur:
+                prices_to_remove.append(price)
+        for price in prices_to_remove:
+            pricing_list.remove(price)
+        ctx.logger.info('Updated prices list: {0}'.format(pricing_list))
+        return sorted(pricing_list)
 
     def _delete_spot_instance(self):
         instance = get_instance(conn)
