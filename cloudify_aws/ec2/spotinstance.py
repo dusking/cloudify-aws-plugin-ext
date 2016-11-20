@@ -18,6 +18,7 @@ import time
 
 # Third-party Imports
 from boto import exception
+from collections import Counter
 from datetime import timedelta, datetime
 
 # Cloudify imports
@@ -139,7 +140,7 @@ class SpotInstance(Instance):
                                     availability_zone=availability_zone),
                                raise_on_falsy=True)
         price_history = [botoSpotPriceHistory.price for botoSpotPriceHistory in results]
-        price_history = sorted(set(price_history))
+        price_history = Counter(price_history)
         ctx.logger.info('spot pricing history: {0}'.format(price_history))
         return price_history
 
@@ -153,7 +154,7 @@ class SpotInstance(Instance):
         return sg
 
     def _get_all_spot_instance_requests(self):
-        ctx.logger.info('Retrieving all spot requests')
+        ctx.logger.debug('Retrieving all spot requests')
         sr = self.execute(self.client.get_all_spot_instance_requests,
                           raise_on_falsy=True)
         return sr
@@ -187,13 +188,13 @@ class SpotInstance(Instance):
             for sir in spot_requests:
                 if sir.id == job_sir_id:
                     job_instance_id = sir.instance_id
-                    ctx.logger.info("job instance id: {0}".format(str(job_instance_id)))
+                    ctx.logger.debug("job instance id: {0}".format(str(job_instance_id)))
                     break
             time.sleep(sleep_between_iterations_sec)
             timeout -= 1
 
         if not job_instance_id:
-            ctx.logger.info('Canceling spot request: {0}'.format(spot_req.id))
+            ctx.logger.debug('Canceling spot request: {0}'.format(spot_req.id))
             self._cancel_spot_instance_requests(spot_req.id)
         else:
             ctx.logger.info("Spot instance id: {0}".format(job_instance_id))
@@ -208,7 +209,8 @@ class SpotInstance(Instance):
     def _create_spot_instances(self, **kwargs):
         job_instance_id = None
 
-        for price in self._pricing_history:
+        pricing_list = sorted(list(self._pricing_history))
+        for price in pricing_list:
             ctx.logger.info('Creating instance with price: {0}, args: {1}'.format(price, kwargs))
             job_instance_id = self._create_spot_instances_at_price(price=price, **kwargs)
             if job_instance_id:
