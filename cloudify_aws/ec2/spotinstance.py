@@ -223,7 +223,7 @@ class SpotInstance(Instance):
     def _remove_low_and_rare_prices(self):
         pricing_list = sorted(list(self._pricing_history))
         prices_to_remove = []
-        min_occur = 10
+        min_occur = 50
         for price in pricing_list:
             if self._pricing_history[price] < min_occur:
                 prices_to_remove.append(price)
