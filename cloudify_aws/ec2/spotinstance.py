@@ -135,7 +135,7 @@ class SpotInstance(Instance):
         ctx.logger.info('Starting spot instance')
         return super(SpotInstance, self).start(args, start_retry_interval,
                                                private_key_path)
-    
+
     def stop(self, args=None, **_):
         ctx.logger.info('Spot instance can not be stopped, unassigning resources')
         utils.unassign_runtime_properties_from_resource(

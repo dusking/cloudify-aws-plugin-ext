@@ -12,6 +12,7 @@
 #    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    * See the License for the specific language governing permissions and
 #    * limitations under the License.
+import time
 
 # Third-party Imports
 from boto import exception
@@ -115,10 +116,21 @@ class SecurityGroup(AwsBaseNode):
 
     def delete(self, args=None, **_):
 
+        attempts = 2
         delete_args = dict(group_id=self.resource_id)
         delete_args = utils.update_args(delete_args, args)
-        return self.execute(self.client.delete_security_group,
-                            delete_args, raise_on_falsy=True)
+        try:
+            return self.execute(self.client.delete_security_group,
+                                delete_args, raise_on_falsy=True)
+        except (exception.EC2ResponseError,
+                exception.BotoServerError) as ex:
+            attempts -= 1
+            if attempts:
+                ctx.logger.warning('Failed to delete, giving another chance. '
+                                   'ex: {0}'.format(ex))
+                time.sleep(2)
+            else:
+                raise ex
 
     def _get_connected_vpc(self):
 
