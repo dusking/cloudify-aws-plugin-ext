@@ -74,7 +74,6 @@ class SpotInstance(Instance):
 
     def create(self, args=None, **_):
         ctx.logger.info('Creating a spot instance')
-
         instance_parameters = self._get_instance_parameters()
 
         ctx.logger.info('Retrieving spot instance pricing history')
@@ -115,7 +114,7 @@ class SpotInstance(Instance):
         return super(SpotInstance, self).start(args, start_retry_interval,
                                                private_key_path)
 
-    def delete(self, args=None, **_):
+    def deleted(self, args=None, **_):
         ctx.logger.info('Deleting spot instance')
         return super(SpotInstance, self).delete(args)
 
@@ -123,11 +122,15 @@ class SpotInstance(Instance):
         return super(SpotInstance, self).modify_attributes(new_attributes, args)
 
     def stop(self, args=None, **_):
-        ctx.logger.info('Trying to stop. Spot instance can not be stopped')
+        ctx.logger.info('Spot instance can not be stopped, unassigning resources')
         utils.unassign_runtime_properties_from_resource(
             property_names=constants.INSTANCE_INTERNAL_ATTRIBUTES,
             ctx_instance=ctx.instance)
         return True
+
+    def modified(self, new_attributes, args=None):
+        ctx.logger.info('Modifying spot instance')
+        return super(SpotInstance, self).modified(new_attributes, args)
 
     def _spot_pricing_history(self, instance_type, availability_zone='eu-central-1a'):
         ctx.logger.info('retrieving spot_pricing_history')
