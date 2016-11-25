@@ -72,8 +72,30 @@ class SpotInstance(Instance):
     def creation_validation(self, **_):
         return super(SpotInstance, self).creation_validation()
 
-    def create(self, args=None, **_):
+    def created(self, args=None):
         ctx.logger.info('Creating a spot instance')
+        return super(SpotInstance, self).created(args)
+
+    def started(self, args=None, start_retry_interval=30,
+                private_key_path=None):
+        ctx.logger.info('Starting spot instance')
+        return super(SpotInstance, self).started(args,
+                                                 start_retry_interval,
+                                                 private_key_path)
+
+    def stopped(self, args=None):
+        ctx.logger.info('Stopping a spot instance')
+        return super(SpotInstance, self).stopped(args)
+
+    def deleted(self, args=None, **_):
+        ctx.logger.info('Deleting spot instance')
+        return super(SpotInstance, self).delete(args)
+
+    def modify_attributes(self, new_attributes, args=None, **_):
+        return super(SpotInstance, self).modify_attributes(new_attributes, args)
+
+    def create(self, args=None, **_):
+        ctx.logger.info('Spot instance create')
         instance_parameters = self._get_instance_parameters()
 
         ctx.logger.info('Retrieving spot instance pricing history')
@@ -113,14 +135,7 @@ class SpotInstance(Instance):
         ctx.logger.info('Starting spot instance')
         return super(SpotInstance, self).start(args, start_retry_interval,
                                                private_key_path)
-
-    def deleted(self, args=None, **_):
-        ctx.logger.info('Deleting spot instance')
-        return super(SpotInstance, self).delete(args)
-
-    def modify_attributes(self, new_attributes, args=None, **_):
-        return super(SpotInstance, self).modify_attributes(new_attributes, args)
-
+    
     def stop(self, args=None, **_):
         ctx.logger.info('Spot instance can not be stopped, unassigning resources')
         utils.unassign_runtime_properties_from_resource(
