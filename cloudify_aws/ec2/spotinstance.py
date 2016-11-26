@@ -229,7 +229,7 @@ class SpotInstance(Instance):
 
         # pricing_list = sorted(list(self._pricing_history))
         pricing_list = self._remove_low_and_rare_prices()
-        for price in pricing_list:
+        for price in pricing_list[4:]:
             ctx.logger.info('Creating instance with price: {0}, args: {1}'.format(price, kwargs))
             job_instance_id = self._create_spot_instances_at_price(price=price, **kwargs)
             if job_instance_id:
@@ -240,6 +240,8 @@ class SpotInstance(Instance):
 
     def _remove_low_and_rare_prices(self):
         pricing_list = sorted(list(self._pricing_history))
+        ctx.logger.info("Spot pricing ordered: {0}".format(pricing_list))
+
         prices_to_remove = []
         min_occur = 50
         for price in pricing_list:
