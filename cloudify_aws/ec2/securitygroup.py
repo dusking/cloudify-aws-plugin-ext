@@ -125,7 +125,7 @@ class SecurityGroup(AwsBaseNode):
         except Exception as ex:
             ctx.logger.warning('Deleting aws security group failed with ex: {0}'.format(type(ex)))
             ctx.logger.warning('Failed to delete, ex: {0}'.format(type(ex)))
-            time.sleep(2)
+            time.sleep(4)
             ctx.logger.info('Giving another chance')
             return self.execute(self.client.delete_security_group,
                                 delete_args, raise_on_falsy=True)
