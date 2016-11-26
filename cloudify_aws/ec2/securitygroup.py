@@ -115,6 +115,7 @@ class SecurityGroup(AwsBaseNode):
         return True
 
     def delete(self, args=None, **_):
+        ctx.logger.info('Deleting aws security group')
 
         attempts = 2
         delete_args = dict(group_id=self.resource_id)
