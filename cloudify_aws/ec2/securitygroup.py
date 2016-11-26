@@ -115,28 +115,20 @@ class SecurityGroup(AwsBaseNode):
         return True
 
     def delete(self, args=None, **_):
-        ctx.logger.info('Deleting aws security group')
 
-        attempts = 2
         delete_args = dict(group_id=self.resource_id)
         delete_args = utils.update_args(delete_args, args)
         ctx.logger.info('Deleting aws security group args: {0}'.format(delete_args))
         try:
             return self.execute(self.client.delete_security_group,
                                 delete_args, raise_on_falsy=True)
-        except (exception.EC2ResponseError,
-                exception.BotoServerError) as ex:
-            ctx.logger.info('a Deleting aws security group failed with ex: {0}'.format(ex))
-            attempts -= 1
-            if attempts:
-                ctx.logger.warning('Failed to delete, giving another chance. '
-                                   'ex: {0}'.format(ex))
-                time.sleep(2)
-            else:
-                raise ex
         except Exception as ex:
-            ctx.logger.info('b Deleting aws security group failed with ex: {0}'.format(ex))
-            raise ex
+            ctx.logger.warning('Deleting aws security group failed with ex: {0}'.format(type(ex)))
+            ctx.logger.warning('Failed to delete, ex: {0}'.format(type(ex)))
+            time.sleep(2)
+            ctx.logger.info('Giving another chance')
+            return self.execute(self.client.delete_security_group,
+                                delete_args, raise_on_falsy=True)
 
     def _get_connected_vpc(self):
 
