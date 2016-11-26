@@ -69,30 +69,30 @@ class SpotInstance(Instance):
         )
         self._pricing_history = []
 
-    def creation_validation(self, **_):
-        return super(SpotInstance, self).creation_validation()
-
-    def created(self, args=None):
-        ctx.logger.info('Creating a spot instance')
-        return super(SpotInstance, self).created(args)
-
-    def started(self, args=None, start_retry_interval=30,
-                private_key_path=None):
-        ctx.logger.info('Starting spot instance')
-        return super(SpotInstance, self).started(args,
-                                                 start_retry_interval,
-                                                 private_key_path)
-
-    def stopped(self, args=None):
-        ctx.logger.info('Stopping a spot instance')
-        return super(SpotInstance, self).stopped(args)
-
-    def deleted(self, args=None, **_):
-        ctx.logger.info('Deleting spot instance')
-        return super(SpotInstance, self).delete(args)
-
-    def modify_attributes(self, new_attributes, args=None, **_):
-        return super(SpotInstance, self).modify_attributes(new_attributes, args)
+    # def creation_validation(self, **_):
+    #     return super(SpotInstance, self).creation_validation()
+    #
+    # def created(self, args=None):
+    #     ctx.logger.info('Creating a spot instance')
+    #     return super(SpotInstance, self).created(args)
+    #
+    # def started(self, args=None, start_retry_interval=30,
+    #             private_key_path=None):
+    #     ctx.logger.info('Starting spot instance')
+    #     return super(SpotInstance, self).started(args,
+    #                                              start_retry_interval,
+    #                                              private_key_path)
+    #
+    # def stopped(self, args=None):
+    #     ctx.logger.info('Stopping a spot instance')
+    #     return super(SpotInstance, self).stopped(args)
+    #
+    # def deleted(self, args=None, **_):
+    #     ctx.logger.info('Deleting spot instance')
+    #     return super(SpotInstance, self).delete(args)
+    #
+    # def modify_attributes(self, new_attributes, args=None, **_):
+    #     return super(SpotInstance, self).modify_attributes(new_attributes, args)
 
     def create(self, args=None, **_):
         ctx.logger.info('Spot instance create')
@@ -143,9 +143,9 @@ class SpotInstance(Instance):
             ctx_instance=ctx.instance)
         return True
 
-    def modified(self, new_attributes, args=None):
-        ctx.logger.info('Modifying spot instance')
-        return super(SpotInstance, self).modified(new_attributes, args)
+    # def modified(self, new_attributes, args=None):
+    #     ctx.logger.info('Modifying spot instance')
+    #     return super(SpotInstance, self).modified(new_attributes, args)
 
     def _spot_pricing_history(self, instance_type, availability_zone='eu-central-1a'):
         ctx.logger.info('retrieving spot_pricing_history')
