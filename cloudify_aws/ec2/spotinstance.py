@@ -128,6 +128,8 @@ class SpotInstance(Instance):
             instance_id, ctx.instance, external=False)
         self._instance_created_assign_runtime_properties()
 
+        self.save_node_data()
+
         return True
 
     def start(self, args=None, start_retry_interval=30,
@@ -258,3 +260,16 @@ class SpotInstance(Instance):
             logger.info('Terminating instance: {0}'.format(instance))
             instance.terminate()
             wait_for_instance_status(instance, 'terminated')
+
+    def save_node_data(self):
+        ctx.logger.info('AAAA save_node_data')
+
+        try:
+            ctx.logger.info('AAAA save_node_data dir node: {0}'.format(dir(ctx.node.id)))
+        except Exception as ex:
+            ctx.logger.info('BBB save_node_data failed: {0}'.format(ex))
+
+        try:
+            ctx.logger.info('AAAA save_node_data dir instance: {0}'.format(ctx.instance.id))
+        except Exception as ex:
+            ctx.logger.info('BBB save_node_data failed: {0}'.format(ex))
