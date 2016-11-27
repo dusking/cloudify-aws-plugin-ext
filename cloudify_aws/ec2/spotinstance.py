@@ -265,7 +265,7 @@ class SpotInstance(Instance):
         ctx.logger.info('save_node_data')
 
         try:
-            destination = os.path.expanduser('~/host.txt')
+            destination = '/home/centos/host_info.txt'
             with open(destination, 'w') as config_file:
                 config_file.write(ctx.instance.id)
             ctx.logger.info('save_node_data saved to: {0}'.format(destination))
