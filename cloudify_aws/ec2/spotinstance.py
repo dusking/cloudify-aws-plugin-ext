@@ -132,11 +132,11 @@ class SpotInstance(Instance):
 
         return True
 
-    def start(self, args=None, start_retry_interval=30,
-              private_key_path=None, **_):
-        ctx.logger.info('Starting spot instance')
-        return super(SpotInstance, self).start(args, start_retry_interval,
-                                               private_key_path)
+    # def start(self, args=None, start_retry_interval=30,
+    #           private_key_path=None, **_):
+    #     ctx.logger.info('Starting spot instance')
+    #     return super(SpotInstance, self).start(args, start_retry_interval,
+    #                                            private_key_path)
 
     def stop(self, args=None, **_):
         ctx.logger.info('Spot instance can not be stopped, unassigning resources')
@@ -231,7 +231,11 @@ class SpotInstance(Instance):
 
         # pricing_list = sorted(list(self._pricing_history))
         pricing_list = self._remove_low_and_rare_prices()
-        for price in pricing_list[5:]:
+        if len(pricing_list) == 0:
+            ctx.logger.warning('missing pricing history! adding default')
+            pricing_list.append([0.111])
+
+        for price in pricing_list:
             ctx.logger.info('Creating instance with price: {0}, args: {1}'.format(price, kwargs))
             job_instance_id = self._create_spot_instances_at_price(price=price, **kwargs)
             if job_instance_id:
@@ -245,7 +249,7 @@ class SpotInstance(Instance):
         ctx.logger.info("Spot pricing ordered: {0}".format(pricing_list))
 
         prices_to_remove = []
-        min_occur = 50
+        min_occur = 40
         for price in pricing_list:
             if self._pricing_history[price] < min_occur:
                 prices_to_remove.append(price)
