@@ -248,13 +248,13 @@ class SpotInstance(Instance):
         pricing_list = sorted(list(self._pricing_history))
         ctx.logger.info("Spot pricing ordered: {0}".format(pricing_list))
 
-        prices_to_remove = []
-        min_occur = 40
-        for price in pricing_list:
-            if self._pricing_history[price] < min_occur:
-                prices_to_remove.append(price)
-        for price in prices_to_remove:
-            pricing_list.remove(price)
+        # prices_to_remove = []
+        # min_occur = 40
+        # for price in pricing_list:
+        #     if self._pricing_history[price] < min_occur:
+        #         prices_to_remove.append(price)
+        # for price in prices_to_remove:
+        #     pricing_list.remove(price)
         ctx.logger.info('Updated prices list: {0}'.format(pricing_list))
         return sorted(pricing_list)
 
