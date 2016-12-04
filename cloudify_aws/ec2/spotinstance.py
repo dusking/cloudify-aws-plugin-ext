@@ -89,7 +89,11 @@ class SpotInstance(Instance):
             'parameters: {0}.'.format(instance_parameters))
 
         sg_names = self._security_group_names(instance_parameters['security_group_ids'])
-        self._max_bid_price = instance_parameters['max_bid_price']
+        try:
+            self._max_bid_price = instance_parameters['max_bid_price']
+        except Exception as ex:
+            ctx.logger.warning('failed retrieving max_bid_price, ex: {0}'.format(ex))
+            self._max_bid_price = 0.1
         instance_id = self._create_spot_instances(
             instance_type=instance_parameters['instance_type'],
             image_id=instance_parameters['image_id'],
