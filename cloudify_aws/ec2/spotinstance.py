@@ -64,35 +64,16 @@ def stop(args=None, **_):
 class SpotInstance(Instance):
 
     def __init__(self, client=None):
-        super(SpotInstance, self).__init__(
-                client=client
-        )
+        super(SpotInstance, self).__init__(client=client)
         self._pricing_history = []
+        self._max_bid_price = 0.1
 
-    # def creation_validation(self, **_):
-    #     return super(SpotInstance, self).creation_validation()
-    #
-    # def created(self, args=None):
-    #     ctx.logger.info('Creating a spot instance')
-    #     return super(SpotInstance, self).created(args)
-    #
-    # def started(self, args=None, start_retry_interval=30,
-    #             private_key_path=None):
-    #     ctx.logger.info('Starting spot instance')
-    #     return super(SpotInstance, self).started(args,
-    #                                              start_retry_interval,
-    #                                              private_key_path)
-    #
-    # def stopped(self, args=None):
-    #     ctx.logger.info('Stopping a spot instance')
-    #     return super(SpotInstance, self).stopped(args)
-    #
-    # def deleted(self, args=None, **_):
-    #     ctx.logger.info('Deleting spot instance')
-    #     return super(SpotInstance, self).delete(args)
-    #
-    # def modify_attributes(self, new_attributes, args=None, **_):
-    #     return super(SpotInstance, self).modify_attributes(new_attributes, args)
+    def _get_instance_parameters(self):
+        parameters = super(SpotInstance, self)._get_instance_parameters(self)
+        parameters.update({'availability_zone': ctx.node.properties['availability_zone'],
+                           'max_bid_price': ctx.node.properties['max_bid_price']})
+        ctx.logger.info('AAAAAAAAAAAAAAAAA parameters: {0}'.format(parameters))
+        return parameters
 
     def create(self, args=None, **_):
         ctx.logger.info('Spot instance create')
@@ -108,10 +89,11 @@ class SpotInstance(Instance):
             'parameters: {0}.'.format(instance_parameters))
 
         sg_names = self._security_group_names(instance_parameters['security_group_ids'])
+        self._max_bid_price = instance_parameters['max_bid_price']
         instance_id = self._create_spot_instances(
             instance_type=instance_parameters['instance_type'],
             image_id=instance_parameters['image_id'],
-            availability_zone_group='eu-central-1a',
+            availability_zone_group=instance_parameters['eu-central-1'],
             key_name=instance_parameters['key_name'],
             security_groups=sg_names)
 
@@ -128,15 +110,9 @@ class SpotInstance(Instance):
             instance_id, ctx.instance, external=False)
         self._instance_created_assign_runtime_properties()
 
-        self.save_node_data()
+        # self.save_node_data()
 
         return True
-
-    # def start(self, args=None, start_retry_interval=30,
-    #           private_key_path=None, **_):
-    #     ctx.logger.info('Starting spot instance')
-    #     return super(SpotInstance, self).start(args, start_retry_interval,
-    #                                            private_key_path)
 
     def stop(self, args=None, **_):
         ctx.logger.info('Spot instance can not be stopped, unassigning resources')
@@ -144,10 +120,6 @@ class SpotInstance(Instance):
             property_names=constants.INSTANCE_INTERNAL_ATTRIBUTES,
             ctx_instance=ctx.instance)
         return True
-
-    # def modified(self, new_attributes, args=None):
-    #     ctx.logger.info('Modifying spot instance')
-    #     return super(SpotInstance, self).modified(new_attributes, args)
 
     def _spot_pricing_history(self, instance_type, availability_zone='eu-central-1a'):
         ctx.logger.info('retrieving spot_pricing_history')
@@ -227,26 +199,30 @@ class SpotInstance(Instance):
         ctx.logger.info('Requests terminated: {0}'.format(res))
 
     def _create_spot_instances(self, **kwargs):
-        job_instance_id = None
+        lowest_bid_price = self._lowest_bid_price()
+        interval = 0.0001
+        bid_price = round(lowest_bid_price, 2) * 2
 
-        # pricing_list = sorted(list(self._pricing_history))
-        pricing_list = self._remove_low_and_rare_prices()
-        if len(pricing_list) == 0:
-            ctx.logger.warning('missing pricing history! adding default')
-            pricing_list.append([0.111])
-
-        for price in pricing_list:
-            ctx.logger.info('Creating instance with price: {0}, args: {1}'.format(price, kwargs))
-            job_instance_id = self._create_spot_instances_at_price(price=price, **kwargs)
+        while bid_price <= self._max_bid_price:
+            ctx.logger.info('Creating instance with price: {0}, args: {1}'
+                            .format(bid_price, kwargs))
+            job_instance_id = self._create_spot_instances_at_price(price=bid_price, **kwargs)
             if job_instance_id:
-                break
+                return job_instance_id
             ctx.logger.warning('Creating instance with price: {0} Failed'.format(price))
+            bid_price += interval
 
-        return job_instance_id
+        return NonRecoverableError('Failed to create spot instance, bid price is more than: {0}'
+                                   .format(self._max_bid_price))
 
-    def _remove_low_and_rare_prices(self):
+    def _lowest_bid_price(self):
         pricing_list = sorted(list(self._pricing_history))
         ctx.logger.info("Spot pricing ordered: {0}".format(pricing_list))
+        return pricing_list[0]
+
+    # def _remove_low_and_rare_prices(self):
+    #     pricing_list = sorted(list(self._pricing_history))
+    #     ctx.logger.info("Spot pricing ordered: {0}".format(pricing_list))
 
         # prices_to_remove = []
         # min_occur = 40
@@ -255,23 +231,23 @@ class SpotInstance(Instance):
         #         prices_to_remove.append(price)
         # for price in prices_to_remove:
         #     pricing_list.remove(price)
-        ctx.logger.info('Updated prices list: {0}'.format(pricing_list))
-        return sorted(pricing_list)
+        # ctx.logger.info('Updated prices list: {0}'.format(pricing_list))
+        # return sorted(pricing_list)
 
-    def _delete_spot_instance(self):
-        instance = get_instance(conn)
-        if instance:
-            logger.info('Terminating instance: {0}'.format(instance))
-            instance.terminate()
-            wait_for_instance_status(instance, 'terminated')
+    # def _delete_spot_instance(self):
+    #     instance = get_instance(conn)
+    #     if instance:
+    #         logger.info('Terminating instance: {0}'.format(instance))
+    #         instance.terminate()
+    #         wait_for_instance_status(instance, 'terminated')
 
-    def save_node_data(self):
-        ctx.logger.info('save_node_data')
-
-        try:
-            destination = '/home/centos/host_info.txt'
-            with open(destination, 'w') as config_file:
-                config_file.write(ctx.instance.id)
-            ctx.logger.info('save_node_data saved to: {0}'.format(destination))
-        except Exception as ex:
-            ctx.logger.info('save_node_data failed: {0}'.format(ex))
+    # def save_node_data(self):
+    #     ctx.logger.info('save_node_data')
+    #
+    #     try:
+    #         destination = '/home/centos/host_info.txt'
+    #         with open(destination, 'w') as config_file:
+    #             config_file.write(ctx.instance.id)
+    #         ctx.logger.info('save_node_data saved to: {0}'.format(destination))
+    #     except Exception as ex:
+    #         ctx.logger.info('save_node_data failed: {0}'.format(ex))
