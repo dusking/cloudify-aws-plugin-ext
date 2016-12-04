@@ -69,7 +69,7 @@ class SpotInstance(Instance):
         self._max_bid_price = 0.1
 
     def _get_instance_parameters(self):
-        parameters = super(SpotInstance, self)._get_instance_parameters(self)
+        parameters = super(SpotInstance, self)._get_instance_parameters()
         parameters.update({'availability_zone': ctx.node.properties['availability_zone'],
                            'max_bid_price': ctx.node.properties['max_bid_price']})
         ctx.logger.info('AAAAAAAAAAAAAAAAA parameters: {0}'.format(parameters))
