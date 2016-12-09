@@ -72,7 +72,7 @@ class SpotInstance(Instance):
         parameters = super(SpotInstance, self)._get_instance_parameters()
         parameters.update({'availability_zone': ctx.node.properties['availability_zone'],
                            'max_bid_price': ctx.node.properties['max_bid_price']})
-        ctx.logger.info('AAAAAAAAAAAAAAAAA parameters: {0}'.format(parameters))
+        ctx.logger.info('parameters: {0}'.format(parameters))
         return parameters
 
     def create(self, args=None, **_):
@@ -89,13 +89,8 @@ class SpotInstance(Instance):
             'parameters: {0}.'.format(instance_parameters))
 
         sg_names = self._security_group_names(instance_parameters['security_group_ids'])
-        ctx.logger.info('sg_names: {0}'.format(sg_names))
-        try:
-            self._max_bid_price = instance_parameters['max_bid_price']
-            ctx.logger.info('_max_bid_price: {0}'.format(self._max_bid_price))
-        except Exception as ex:
-            ctx.logger.warning('failed retrieving max_bid_price, ex: {0}'.format(ex))
-            self._max_bid_price = 0.1
+        self._max_bid_price = instance_parameters['max_bid_price']
+
         instance_id = self._create_spot_instances(
             instance_type=instance_parameters['instance_type'],
             image_id=instance_parameters['image_id'],
