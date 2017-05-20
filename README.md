@@ -28,7 +28,7 @@ exit
 
 Copy plugin source to the vagrant machine
 ```
-scp -i ~/.vagrant/centos7_manager/.vagrant/machines/default/virtualbox/private_key -r cloudify-aws-plugin-ext vagrant@172.28.128.4:~/
+scp -i ~/.vagrant/centos7_manager/.vagrant/machines/default/virtualbox/private_key -r ~/dev/faaspot_repos/cloudify-aws-plugin-ext vagrant@172.28.128.4:~/
 ```
 
 Then build wagon of the plugin
@@ -42,10 +42,25 @@ wagon create . -t tar.gz -f -v
 exit
 ```
 
-Take the wagon and upload it to the cloudify manager
+Upload the wagon to s3
 ```
-scp -i ~/.vagrant/centos7_manager/.vagrant/machines/default/virtualbox/private_key -r vagrant@172.28.128.4:~/cloudify-aws-plugin-ext/cloudify_aws_plugin_ext-0.0.1-py27-none-linux_x86_64.wgn .
-cfy plugins upload cloudify_aws_plugin_ext-0.0.1-py27-none-linux_x86_64.wgn
+Access_Key_ID = 'AKI**'
+Secret_Access_Key = 'rd**'
+
+from boto.s3.connection import S3Connection
+from boto.s3.key import Key
+sconn = S3Connection(Access_Key_ID, Secret_Access_Key)
+bucket = sconn.get_bucket('cdn.faaspot.com')
+key = Key(bucket)
+key.key = 'cloudify_aws_plugin_ext-0.0.2-py27-none-linux_x86_64.wgn'
+key.set_contents_from_filename('/home/vagrant/cloudify-aws-plugin-ext/{0}'.format(key.key))
+bucket.set_acl('public-read', key.key)
+```
+
+Or.. Take the wagon and upload it to the cloudify manager manually
+```
+scp -i ~/.vagrant/centos7_manager/.vagrant/machines/default/virtualbox/private_key -r vagrant@172.28.128.4:~/cloudify-aws-plugin-ext/cloudify_aws_plugin_ext-0.0.2-py27-none-linux_x86_64.wgn .
+cfy plugins upload cloudify_aws_plugin_ext-0.0.2-py27-none-linux_x86_64.wgn
 ```
 
 ## Usage

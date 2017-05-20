@@ -3,14 +3,12 @@
 ##################################################################################
 
 plugins:
+
   aws:
     executor: central_deployment_agent
-#    source: https://github.com/cloudify-cosmo/cloudify-aws-plugin/archive/1.4.3.zip
-    source: https://github.com/dusking/cloudify-aws-plugin-ext/archive/master.zip
-#    package_name: cloudify-aws-plugin
-#    package_version: '1.4.3'
     package_name: cloudify-aws-plugin-ext
-    package_version: '0.0.1'
+    package_version: '0.0.2'
+
 
 data_types:
 
@@ -778,7 +776,9 @@ node_types:
       cloudify.interfaces.validation:
         creation: aws.cloudify_aws.vpc.routetable.creation_validation
 
+
 relationships:
+
   cloudify.aws.relationships.instance_connected_to_elastic_ip:
     derived_from: cloudify.relationships.connected_to
     source_interfaces:
@@ -916,3 +916,30 @@ relationships:
 
   cloudify.aws.relationships.security_group_contained_in_vpc:
     derived_from: cloudify.relationships.contained_in
+
+
+workflows:
+
+#  scale_or_burst:
+#    mapping: dp.dp_plugin.workflows.scale_or_burst
+#    parameters:
+#      scalable_entity_name:
+#        description: >
+#          This is the node name of the dp node that decides which parent to burst.
+#      delta:
+#        description: >
+#          The number of additional instances to deploy.
+#
+#  heal_dp:
+#    mapping: dp.dp_plugin.workflows.heal_dp
+#    parameters:
+#      node_instance_id:
+#        description: >
+#          This is the node_instance_id to heal.
+#      diagnose_value:
+#        description: >
+#          If you want to tell everyone why.
+#        default: 'Just cuz'
+
+  refresh_ip:
+    mapping: aws.cloudify_aws.workflows.refresh_ip
