@@ -59,8 +59,8 @@ bucket.set_acl('public-read', key.key)
 
 Or.. Take the wagon and upload it to the cloudify manager manually
 ```
-scp -i ~/.vagrant/centos7_manager/.vagrant/machines/default/virtualbox/private_key -r vagrant@172.28.128.4:~/cloudify-aws-plugin-ext/cloudify_aws_plugin_ext-0.0.2-py27-none-linux_x86_64.wgn .
-cfy plugins upload cloudify_aws_plugin_ext-0.0.2-py27-none-linux_x86_64.wgn
+scp -i ~/.vagrant/centos7_manager/.vagrant/machines/default/virtualbox/private_key -r vagrant@172.28.128.5:~/cloudify-aws-plugin-ext/cloudify_aws_plugin_ext-0.0.3-py27-none-linux_x86_64.wgn .
+cfy plugins upload cloudify_aws_plugin_ext-0.0.3-py27-none-linux_x86_64.wgn
 ```
 
 ## Usage
