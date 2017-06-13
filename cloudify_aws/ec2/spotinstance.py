@@ -19,6 +19,7 @@ import time
 # Third-party Imports
 from boto import exception
 from collections import Counter
+from collections import namedtuple
 from datetime import timedelta, datetime
 
 # Cloudify imports
@@ -61,6 +62,9 @@ def stop(args=None, **_):
     return SpotInstance().stopped(args)
 
 
+SpotRequestInfo = namedtuple('SpotRequestInfo', ['instance_id', 'request_id'])
+
+
 class SpotInstance(Instance):
 
     def __init__(self, client=None):
@@ -76,7 +80,7 @@ class SpotInstance(Instance):
         return parameters
 
     def create(self, args=None, **_):
-        ctx.logger.info('Spot instance create')
+        ctx.logger.info('Going to create spot instance')
         instance_parameters = self._get_instance_parameters()
         availability_zone = instance_parameters.get('availability_zone')
         instance_type = instance_parameters.get('instance_type')
@@ -97,36 +101,35 @@ class SpotInstance(Instance):
         sg_names = self._security_group_names(security_group_ids)
         self._max_bid_price = max_bid_price
 
-        instance_id = self._create_spot_instances(
+        spot_request_info = self._create_spot_instances(
             instance_type=instance_type,
             image_id=image_id,
             availability_zone_group=availability_zone,
             key_name=key_name,
             security_groups=sg_names)
 
-        self.resource_id = instance_id
-        # ctx.instance.runtime_properties['reservation_id'] = reservation.id
+        self.resource_id = spot_request_info.instance_id
+        ctx.logger.info('Saving request_id: {0}'.format(spot_request_info.request_id))
+        ctx.instance.runtime_properties['request_id'] = spot_request_info.request_id
 
-        instance = self._get_instance_from_id(instance_id)
-
+        instance = self._get_instance_from_id(spot_request_info.instance_id)
         if instance is None:
             return False
 
         ctx.logger.info('Setting external ip')
         utils.set_external_resource_id(
-            instance_id, ctx.instance, external=False)
+            spot_request_info.instance_id, ctx.instance, external=False)
         self._instance_created_assign_runtime_properties()
-
-        # self.save_node_data()
-
         return True
 
     def stop(self, args=None, **_):
         ctx.logger.info('Spot instance can not be stopped, Cancelling request')
-        # instance_id = self.resource_id
-        # instance = self._get_instance_from_id(instance_id)
-        # self._cancel_spot_instance_requests(spot_req.id)
-        # ctx.logger.info('Spot instance cancel response: {0}'.format(results))
+        request_id = ctx.instance.runtime_properties['request_id']
+        ctx.logger.info('Retrieved request_id: {0}'.format(request_id))
+        if not request_id:
+            raise NonRecoverableError('Failed to cancel spot request! '
+                                      'Failed to retrieve spot request_id ')
+        self._cancel_spot_instance_requests(request_id)
         ctx.logger.info('Un-assigning resources')
         utils.unassign_runtime_properties_from_resource(
             property_names=constants.INSTANCE_INTERNAL_ATTRIBUTES,
@@ -201,16 +204,18 @@ class SpotInstance(Instance):
             timeout -= 1
         if not job_instance_id:
             self._cancel_spot_instance_requests(spot_req.id)
+            return SpotRequestInfo(None, None)
         else:
-            ctx.logger.info("Created spot instance id: {0}".format(job_instance_id))
-        return job_instance_id
+            ctx.logger.info("Created spot instance id: {0}, spot request id: {1}"
+                            .format(job_instance_id, spot_req.id))
+            return SpotRequestInfo(job_instance_id, spot_req.id)
 
     def _cancel_spot_instance_requests(self, spot_req_id, raise_on_falsy=True):
         ctx.logger.info('Canceling spot request: {0}'.format(spot_req_id))
         res = self.execute(self.client.cancel_spot_instance_requests,
                            dict(request_ids=[spot_req_id]),
                            raise_on_falsy=raise_on_falsy)
-        ctx.logger.info('Requests terminated: {0}'.format(res))
+        ctx.logger.info('Requests cancelled: {0}'.format(res))
 
     def _create_spot_instances(self, **kwargs):
         lowest_bid_price = self._lowest_bid_price()
@@ -220,9 +225,9 @@ class SpotInstance(Instance):
         while bid_price <= self._max_bid_price and max_attempts:
             ctx.logger.info('Creating instance with price: {0}, args: {1}'
                             .format(bid_price, kwargs))
-            job_instance_id = self._create_spot_instances_at_price(price=bid_price, **kwargs)
-            if job_instance_id:
-                return job_instance_id
+            spot_request_info = self._create_spot_instances_at_price(price=bid_price, **kwargs)
+            if spot_request_info and spot_request_info.instance_id:
+                return spot_request_info
             ctx.logger.warning('Creating instance with price: {0} Failed'.format(bid_price))
             bid_price += interval
             max_attempts -= 1
@@ -253,14 +258,3 @@ class SpotInstance(Instance):
     #         logger.info('Terminating instance: {0}'.format(instance))
     #         instance.terminate()
     #         wait_for_instance_status(instance, 'terminated')
-
-    # def save_node_data(self):
-    #     ctx.logger.info('save_node_data')
-    #
-    #     try:
-    #         destination = '/home/centos/host_info.txt'
-    #         with open(destination, 'w') as config_file:
-    #             config_file.write(ctx.instance.id)
-    #         ctx.logger.info('save_node_data saved to: {0}'.format(destination))
-    #     except Exception as ex:
-    #         ctx.logger.info('save_node_data failed: {0}'.format(ex))
