@@ -62,8 +62,36 @@ def stop(args=None, **_):
     return SpotInstance().stopped(args)
 
 
-SpotRequestInfo = namedtuple('SpotRequestInfo', ['instance_id', 'request_id'])
+SpotRequestInfo = namedtuple('SpotRequestInfo', ['instance_id',
+                                                 'request_id',
+                                                 'region',
+                                                 'availability_zone'])
 
+# http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html
+FailureSpotStatusCodes = ['cancelled-before-fulfillment',
+                          'constraint-not-fulfillable',
+                          'instance-terminated-by-price',
+                          'instance-terminated-capacity-oversubscribed',
+                          'instance-terminated-launch-group-constraint',
+                          'instance-terminated-no-capacity',
+                          'launch-group-constraint',
+                          'limit-exceeded',
+                          'marked-for-termination',
+                          'placement-group-constraint',
+                          'price-too-low',
+                          'request-cancelled-and-instance-running',
+                          'schedule-expired',
+                          'system-error']
+FatalSpotStatusCodes = ['az-group-constraint',
+                        'bad-parameters',
+                        'capacity-not-available',
+                        'capacity-oversubscribed',]
+SuccessSpotStatusCodes = ['fulfilled',
+                          'instance-terminated-by-user',
+                          'spot-instance-terminated-by-user']
+ProgressSpotStatusCodes = ['pending-evaluation',
+                           'pending-fulfillment',
+                           'request-canceled-and-instance-running']
 
 class SpotInstance(Instance):
 
@@ -71,11 +99,13 @@ class SpotInstance(Instance):
         super(SpotInstance, self).__init__(client=client)
         self._pricing_history = []
         self._max_bid_price = 0.1
+        self._starting_bid_price = None
 
     def _get_instance_parameters(self):
         parameters = super(SpotInstance, self)._get_instance_parameters()
         parameters.update({'availability_zone': ctx.node.properties['availability_zone'],
-                           'max_bid_price': ctx.node.properties['max_bid_price']})
+                           'max_bid_price': ctx.node.properties['max_bid_price'],
+                           'starting_bid_price': ctx.node.properties['starting_bid_price']})
         ctx.logger.info('parameters: {0}'.format(parameters))
         return parameters
 
@@ -87,39 +117,36 @@ class SpotInstance(Instance):
         image_id = instance_parameters.get('image_id')
         key_name = instance_parameters.get('key_name')
         max_bid_price = instance_parameters.get('max_bid_price')
+        starting_bid_price = instance_parameters.get('starting_bid_price')
         security_group_ids = instance_parameters.get('security_group_ids')
         ctx.logger.info('Retrieving spot instance pricing history, for: {0}@{1}'
                         .format(instance_type, availability_zone))
-        self._pricing_history = self._spot_pricing_history(instance_type, availability_zone)
-        if not self._pricing_history:
-            raise NonRecoverableError('Failed to retrieve spot pricing history')
-
-        ctx.logger.info(
-            'Attempting to create EC2 Spot Instance with these API '
-            'parameters: {0}.'.format(instance_parameters))
-
-        sg_names = self._security_group_names(security_group_ids)
         self._max_bid_price = max_bid_price
-
+        self._starting_bid_price = self._str_to_number(starting_bid_price)
+        sg_names = self._security_group_names(security_group_ids)
+        if self._starting_bid_price > 0:
+            ctx.logger.info('Starting bid at given price: {0}'.format(self._starting_bid_price))
+        else:
+            self._pricing_history = self._spot_pricing_history(instance_type, availability_zone)
+            if not self._pricing_history:
+                raise NonRecoverableError('Failed to retrieve spot pricing history')
+        ctx.logger.info('Attempting to create EC2 Spot Instance with these API '
+                        'parameters: {0}.'.format(instance_parameters))
         spot_request_info = self._create_spot_instances(
             instance_type=instance_type,
             image_id=image_id,
             availability_zone_group=availability_zone,
             key_name=key_name,
             security_groups=sg_names)
-
+        ctx.logger.info('Spot instance instance_id: {0}'.format(spot_request_info.instance_id))
         self.resource_id = spot_request_info.instance_id
-        ctx.logger.info('Saving request_id: {0}'.format(spot_request_info.request_id))
         ctx.instance.runtime_properties['request_id'] = spot_request_info.request_id
-
         instance = self._get_instance_from_id(spot_request_info.instance_id)
-        if instance is None:
-            return False
-
-        ctx.logger.info('Setting external ip')
-        utils.set_external_resource_id(
-            spot_request_info.instance_id, ctx.instance, external=False)
+        if not instance:
+            raise NonRecoverableError('Failed to retrieve spot instance')
+        utils.set_external_resource_id(spot_request_info.instance_id, ctx.instance, external=False)
         self._instance_created_assign_runtime_properties()
+        ctx.logger.info('Spot created')
         return True
 
     def stop(self, args=None, **_):
@@ -135,6 +162,10 @@ class SpotInstance(Instance):
             property_names=constants.INSTANCE_INTERNAL_ATTRIBUTES,
             ctx_instance=ctx.instance)
         return True
+
+    def _verify_zone_in_current_region(self, availability_zone):
+        results = self.execute(self.client.get_all_zones)
+        return 'Zone:{0}'.format(availability_zone) in results
 
     def _spot_pricing_history(self, instance_type, availability_zone):
         ctx.logger.info('Retrieving spot_pricing_history, '
@@ -161,9 +192,13 @@ class SpotInstance(Instance):
         ctx.logger.info('Security groups names: {0}'.format(sg))
         return sg
 
-    def _get_all_spot_instance_requests(self):
-        ctx.logger.debug('Retrieving all spot requests')
+    def _get_spot_instance_requests(self, request_ids=None):
+        ctx.logger.debug('Retrieving all spot requests, request_ids={0}'.format(request_ids))
+        if request_ids and not isinstance(request_ids, list):
+            request_ids = [request_ids]
+        arguments = dict(request_ids=request_ids)
         sr = self.execute(self.client.get_all_spot_instance_requests,
+                          arguments,
                           raise_on_falsy=True)
         return sr
 
@@ -182,33 +217,35 @@ class SpotInstance(Instance):
                          security_groups=security_groups)
         ctx.logger.info('Sending spot request, arguments: {0}'.format(arguments))
         spot_req = self.execute(self.client.request_spot_instances, arguments, raise_on_falsy=True)
-        if not spot_req:
-            raise NonRecoverableError('Failed to create spot request')
         spot_req = spot_req[0]
-
+        spot_req_id = spot_req.id
         ctx.logger.info('Waiting for request to be fulfill')
-        job_instance_id = None
         sleep_between_iterations_sec = 2
         timeout = 20
-        while timeout and not job_instance_id:
-            ctx.logger.info("Checking job instance id for spot request: {0}".format(spot_req.id))
-            job_sir_id = spot_req.id
-            spot_requests = self._get_all_spot_instance_requests()
-            for sir in spot_requests:
-                if sir.id == job_sir_id:
-                    job_instance_id = sir.instance_id
-                    if job_instance_id:
-                        ctx.logger.info("Found instance for request!")
-                    break
+        for i in xrange(timeout):
+            spot_req = self._get_spot_instance_requests(spot_req_id)
+            spot_req = spot_req[0] if spot_req else None
+            if not spot_req:
+                ctx.logger.info("Spot request `{0}` was not found".format(spot_req_id))
+                continue
+            status_code = spot_req.status.code
+            ctx.logger.info("Spot request `{0}` status: {1}".format(spot_req.id, status_code))
+            if status_code in ProgressSpotStatusCodes:
+                pass
+            elif spot_req.instance_id and status_code in SuccessSpotStatusCodes:
+                break
+            elif status_code in FailureSpotStatusCodes:
+                self._cancel_spot_instance_requests(spot_req.id)
+                return None
+            elif status_code in FatalSpotStatusCodes:
+                self._cancel_spot_instance_requests(spot_req.id)
+                raise NonRecoverableError('Failed to create spot, got: {0}'.format(status_code))
             time.sleep(sleep_between_iterations_sec)
-            timeout -= 1
-        if not job_instance_id:
-            self._cancel_spot_instance_requests(spot_req.id)
-            return SpotRequestInfo(None, None)
-        else:
-            ctx.logger.info("Created spot instance id: {0}, spot request id: {1}"
-                            .format(job_instance_id, spot_req.id))
-            return SpotRequestInfo(job_instance_id, spot_req.id)
+        ctx.logger.info("Created spot instance: {0}".format(spot_req))
+        return SpotRequestInfo(spot_req.instance_id,
+                               spot_req.id,
+                               spot_req.region.name,
+                               spot_req.launched_availability_zone)
 
     def _cancel_spot_instance_requests(self, spot_req_id, raise_on_falsy=True):
         ctx.logger.info('Canceling spot request: {0}'.format(spot_req_id))
@@ -218,25 +255,37 @@ class SpotInstance(Instance):
         ctx.logger.info('Requests cancelled: {0}'.format(res))
 
     def _create_spot_instances(self, **kwargs):
-        lowest_bid_price = self._lowest_bid_price()
+        bid_price = self._starting_bid_price
+        if not bid_price:
+            lowest_bid_price = self._lowest_bid_price()
+            bid_price = round(lowest_bid_price, 2) * 2
         interval = 0.0001
-        bid_price = round(lowest_bid_price, 2) * 2
         max_attempts = 5
-        while bid_price <= self._max_bid_price and max_attempts:
-            ctx.logger.info('Creating instance with price: {0}, args: {1}'
-                            .format(bid_price, kwargs))
-            spot_request_info = self._create_spot_instances_at_price(price=bid_price, **kwargs)
-            if spot_request_info and spot_request_info.instance_id:
-                return spot_request_info
-            ctx.logger.warning('Creating instance with price: {0} Failed'.format(bid_price))
+        for i in xrange(max_attempts):
+            ctx.logger.info('Creating spot with price: {0}, args: {1}'.format(bid_price, kwargs))
+            request_info = self._create_spot_instances_at_price(price=bid_price, **kwargs)
+            if request_info:
+                ctx.logger.info('Created spot, sir id: {0}, instance id: {1}'
+                                .format(request_info.request_id, request_info.instance_id))
+                return request_info
+            ctx.logger.warning('Creating spot with price: {0} Failed'.format(bid_price))
             bid_price += interval
-            max_attempts -= 1
-        return NonRecoverableError('Failed to create spot instance!')
+            if bid_price > self._max_bid_price:
+                raise NonRecoverableError('Failed to create spot instance at max price')
+        raise NonRecoverableError('Failed to create spot instance!')
 
     def _lowest_bid_price(self):
         pricing_list = sorted(list(self._pricing_history))
         ctx.logger.info("Spot pricing ordered: {0}".format(pricing_list))
         return pricing_list[0]
+
+    @staticmethod
+    def _str_to_number(number):
+        try:
+            return float(number)
+        except Exception:
+            ctx.logger.info('Input is not a number: `{0}`'.format(number))
+            return 0
 
     # def _remove_low_and_rare_prices(self):
     #     pricing_list = sorted(list(self._pricing_history))
