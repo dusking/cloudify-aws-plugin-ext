@@ -105,7 +105,8 @@ class SpotInstance(Instance):
         parameters = super(SpotInstance, self)._get_instance_parameters()
         parameters.update({'availability_zone': ctx.node.properties['availability_zone'],
                            'max_bid_price': ctx.node.properties['max_bid_price'],
-                           'starting_bid_price': ctx.node.properties['starting_bid_price']})
+                           'starting_bid_price': ctx.node.properties['starting_bid_price'],
+                           'user_data_init_script': ctx.node.properties['user_data_init_script']})
         ctx.logger.info('parameters: {0}'.format(parameters))
         return parameters
 
@@ -119,6 +120,7 @@ class SpotInstance(Instance):
         max_bid_price = instance_parameters.get('max_bid_price')
         starting_bid_price = instance_parameters.get('starting_bid_price')
         security_group_ids = instance_parameters.get('security_group_ids')
+        user_data = instance_parameters.get('user_data_init_script')
         ctx.logger.info('Retrieving spot instance pricing history, for: {0}@{1}'
                         .format(instance_type, availability_zone))
         self._max_bid_price = max_bid_price
@@ -137,7 +139,8 @@ class SpotInstance(Instance):
             image_id=image_id,
             availability_zone_group=availability_zone,
             key_name=key_name,
-            security_groups=sg_names)
+            security_groups=sg_names,
+            user_data=user_data)
         ctx.logger.info('Spot instance instance_id: {0}'.format(spot_request_info.instance_id))
         self.resource_id = spot_request_info.instance_id
         ctx.instance.runtime_properties['request_id'] = spot_request_info.request_id
@@ -207,14 +210,16 @@ class SpotInstance(Instance):
                                         availability_zone_group,
                                         key_name,
                                         security_groups,
-                                        price):
+                                        price,
+                                        user_data):
         arguments = dict(price=price,
                          instance_type=instance_type,
                          image_id=image_id,
                          availability_zone_group=availability_zone_group,
                          placement=availability_zone_group,
                          key_name=key_name,
-                         security_groups=security_groups)
+                         security_groups=security_groups,
+                         user_data=user_data)
         ctx.logger.info('Sending spot request, arguments: {0}'.format(arguments))
         spot_req = self.execute(self.client.request_spot_instances, arguments, raise_on_falsy=True)
         spot_req = spot_req[0]
