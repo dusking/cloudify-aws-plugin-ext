@@ -127,7 +127,8 @@ class Instance(AwsBaseNode):
 
     def start(self, args=None, start_retry_interval=30,
               private_key_path=None, **_):
-        ctx.logger.info('Going to start instance..')
+        ctx.logger.info('Going to start instance.. '
+                        'start_retry_interval: {0}'.format(start_retry_interval))
 
         instance_id = self.resource_id
 
@@ -168,13 +169,13 @@ class Instance(AwsBaseNode):
             return False
         return True
 
-    def started(self, args=None, start_retry_interval=30,
+    def started(self, args=None, start_retry_interval=5,
                 private_key_path=None):
 
         if self.aws_resource_type is 'instance':
             ctx.logger.info(
-                    'Attempting to start instance {0}.'
-                    .format(self.cloudify_node_instance_id))
+                    'Attempting to start instance {0}. start_retry_interval: {1}'
+                    .format(self.cloudify_node_instance_id, start_retry_interval))
 
         if self.use_external_resource_naively() or \
                 self.start(args, start_retry_interval, private_key_path):

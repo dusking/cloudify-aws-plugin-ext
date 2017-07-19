@@ -44,6 +44,7 @@ def create(args=None, **_):
 
 @operation
 def start(args=None, start_retry_interval=30, private_key_path=None, **_):
+    start_retry_interval = 5
     return SpotInstance().started(args, start_retry_interval, private_key_path)
 
 
